@@ -67,43 +67,8 @@ public class Controller extends Thread {
         SimpleFormatter formatter = new SimpleFormatter();
         fh.setFormatter(formatter);
     }
-
-    @Override
-    public void run()
-    {
-        count++;
-        log.info("New Comm Thread Started");
-        log.info("This is Customer: "+count);
-        
-        try{
-            PrintWriter out = new PrintWriter(vcSocket.getOutputStream(),
-                                              true);
-            BufferedReader in = new BufferedReader(
-                                                   new InputStreamReader( vcSocket.getInputStream()));
-            
-            String inputLine;
-            boolean done = false;
-            while ((inputLine = in.readLine()) != null)
-            {
-                log.info ("Server: " + inputLine);
-                out.println(inputLine);
-                
-                if (inputLine.equalsIgnoreCase("Bye"))
-                    break;
-            }
-            
-            out.close();
-            in.close();
-            vcSocket.close();
-            //serverSocket.close(); 
-        }catch (IOException e) 
-        { 
-            System.err.println("Could not listen on port: 10007.");
-            System.exit(1); 
-        } 
-    }
-
-    /* FIX THIS !!!!!!!!!
+    
+    //This still needs to be fixed. Running into nullpointerexception
     @Override
     public void run(){
         while(count < 10){
@@ -136,7 +101,6 @@ public class Controller extends Thread {
             }
         }
     }
-     */
     public static void main(String [] args) throws IOException{
         new Controller();
     }
