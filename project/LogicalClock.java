@@ -40,11 +40,10 @@ public class LogicalClock {
 
     public String getTimeStamp()
     {
-        String time = "  client: [";
-        time+=String.valueOf(clockData[0]+"]\n");
-        time+="         current: ["+String.valueOf(clockData[1])+"]\n";
-        time+="     received ID: ["+String.valueOf(clockData[2])+"]\n";
-        time+="    received Val: ["+String.valueOf(clockData[3])+"]\n";
+        String time = "     client: ["+String.valueOf(clockData[0]+"]\n");
+               time+="     current: ["+String.valueOf(clockData[1])+"]\n";
+               time+=" received ID: ["+String.valueOf(clockData[2])+"]\n";
+               time+="received Val: ["+String.valueOf(clockData[3])+"]\n";
         return time;
     }
 }
