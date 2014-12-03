@@ -78,7 +78,9 @@ public class Server extends Thread {
         while ((server_says = bufferedReader2.readLine()) != null) {
             System.out.println("server_writer: " + server_says);
             printWriter.println(server_says);
-            if (server_says.equalsIgnoreCase("Bye")) {System.exit(0);}
+            if (server_says.equalsIgnoreCase("Bye")) {
+                System.exit(0);
+            }
         }
         printWriter.close();
         bufferedReader.close();
@@ -93,12 +95,6 @@ public class Server extends Thread {
     }
 
 
-    /*************************************************************
-    **
-    **   The run() method contains the server/client interaction;
-    **   the method is called automatically
-    **
-    **************************************************************/
     @Override
     public void run() {
 
@@ -107,10 +103,9 @@ public class Server extends Thread {
             PrintWriter printWriter = new PrintWriter(clientSocket.getOutputStream(), true);
             BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
 
-
-            clientTHREADS.add(clientSocket);
-            System.out.println("Connection Socket Created [added thread: "+Thread.currentThread().getName()+"]");//+"]");
-
+            //add this client socket to the array
+            if (clientSocket.isBound()) clientTHREADS.add(clientSocket);
+            System.out.println("Connection Socket Created [added thread: " + Thread.currentThread().getName() + "]");
 
             String client_says = bufferedReader.readLine();
             printWriter.println("processing request...");
@@ -118,46 +113,46 @@ public class Server extends Thread {
 
             if (!getData(client_says)) {
                 printWriter.println("invalid ");
-            }
-            else {
+            } else {
                 //initial data transfer: validID @@ validPORT @@ neighPORT @@ isHEAD @@ isTail
-                System.out.println("\nclient IDs: "+clientIDs);
-                System.out.println("client Ports: "+clientPORTs);
-                boolean isHead = (clientIDs.size()<2 && threadIndex==0);
-                boolean isTail = (clientIDs.size()==10);
+                System.out.println("\nclient IDs: " + clientIDs);
+                System.out.println("client Ports: " + clientPORTs);
+                boolean isHead = (clientIDs.size() < 2 && threadIndex == 0);
+                boolean isTail = (clientIDs.size() == 5);
 
-                if(!isHead){//to non-head processes
-                    printWriter.println("@@"+clientIDs.get(threadIndex)+
-                            "@@"+clientPORTs.get(threadIndex)+
-                            "@@"+clientPORTs.get(threadIndex - 1)+
-                            "@@"+isHead+"@@"+isTail);
+                if (!isHead) {//to non-head processes
+                    printWriter.println("@@" + clientIDs.get(threadIndex) +
+                            "@@" + clientPORTs.get(threadIndex) +
+                            "@@" + clientPORTs.get(threadIndex - 1) +
+                            "@@" + isHead + "@@" + isTail);
 
-                }else if(isHead){//to head
-                    printWriter.println("@@"+clientIDs.get(threadIndex)+
-                            "@@"+clientPORTs.get(threadIndex)+
-                            "@@"+(clientPORTs.get(threadIndex)+9)+
-                            "@@"+isHead+"@@"+isTail);
+                } else if (isHead) {//to head
+                    printWriter.println("@@" + clientIDs.get(threadIndex) +
+                            "@@" + clientPORTs.get(threadIndex) +
+                            "@@" + (clientPORTs.get(threadIndex) + 9) +
+                            "@@" + isHead + "@@" + isTail);
 
                 }
 
                 System.out.println("   -->just sent data to client " + threadIndex);
-                if(count==5)broadcast(0,"##"+clientPORTs.get(4).toString());//send port address of last to the first
+                if (count == 5)
+                    broadcast(0, "##" + clientPORTs.get(4).toString());//send port address of last to the first
 //              printWriter1.println("End");
 
             }
 
 
-//            while ((client_says = bufferedReader.readLine()) != null) {
-//                if(!client_says.isEmpty()){
+            while ((client_says = bufferedReader.readLine()) != null) {
+//              if(!client_says.isEmpty()){
 //                    System.out.println("received MSG: " + client_says);}
-//                printWriter1.println(client_says);
-//                if (client_says.trim().equalsIgnoreCase("Bye")) {
-//                    printWriter1.close();
+//                    printWriter.println(client_says);
+                if (client_says.trim().equalsIgnoreCase("Bye")) {
+//                    printWriter.close();
+//                    printWriter.flush();
 //                    bufferedReader.close();
-//                    clientSocket.close();
-//                    System.exit(0);
-//                }
-//            }
+                    clientSocket.close();
+                }
+            }
 
 //            printWriter1.close();
 //            printWriter1.flush();
@@ -187,7 +182,7 @@ public class Server extends Thread {
         if (validID(temp)) {
             clientIDs.add(temp);
             okayID = true;
-        }else{
+        } else {
             clientIDs.add(getValidID(temp));
             okayID = true;
         }
@@ -206,16 +201,14 @@ public class Server extends Thread {
         }
     }
 
-    private boolean validID(int ID)
-    {
+    private boolean validID(int ID) {
         for (Integer id : clientIDs) {
             if (ID == id) return false;
         }
         return true;
     }
 
-    private int getValidID(int inValidID)
-    {
+    private int getValidID(int inValidID) {
         boolean legitID = false;
         int validID = inValidID;
 
@@ -227,30 +220,26 @@ public class Server extends Thread {
         return validID;
     }
 
-    private int getValidPort()
-    {
-        return 10010+getThreadIndex();
+    private int getValidPort() {
+        return 10010 + getThreadIndex();
     }
 
-    private int getThreadIndex()
-    {
+    private int getThreadIndex() {
         CharSequence name = Thread.currentThread().getName();
         String index_str = "";
 
-        for(int i = 0; i<name.length(); i++)
-        {
+        for (int i = 0; i < name.length(); i++) {
             Character temp = name.charAt(i);
-            if(Character.isDigit(temp)){
-                index_str = index_str+temp;
+            if (Character.isDigit(temp)) {
+                index_str = index_str + temp;
             }
         }
 
         return Integer.valueOf(index_str);
     }
 
-    public void broadcast(int position, String MSG)
-    {
-        System.out.println("trying to send MSG: "+MSG);
+    public void broadcast(int position, String MSG) {
+        System.out.println("trying to send MSG: " + MSG);
         if (position == -1) {
             for (Socket socket : clientTHREADS) {
                 try {
@@ -271,11 +260,10 @@ public class Server extends Thread {
     }
 
 
-
     //add method to both client and server
-    private static void logging() throws IOException{
+    private static void logging() throws IOException {
         log = Logger.getLogger("LogFile");
-        fh = new FileHandler("Computer"+Client.ID+".txt");
+        fh = new FileHandler("Computer" + Client.ID + ".txt");
         //for the server is as follows
         //fh = new FileHandler("Controller.txt");
         log.addHandler(fh);
