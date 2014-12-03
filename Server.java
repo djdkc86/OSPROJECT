@@ -1,5 +1,5 @@
 
-package project.src;
+//package project.src;
 
 import java.io.*;
 import java.net.*;
@@ -121,13 +121,13 @@ public class Server extends Thread {
                 boolean isTail = (clientIDs.size() == 5);
 
                 if (!isHead) {//to non-head processes
-                    printWriter.println("@@" + clientIDs.get(threadIndex) +
+                    printWriter.println("@@" + count + "@@" + clientIDs.get(threadIndex) +
                             "@@" + clientPORTs.get(threadIndex) +
                             "@@" + clientPORTs.get(threadIndex - 1) +
                             "@@" + isHead + "@@" + isTail);
 
                 } else if (isHead) {//to head
-                    printWriter.println("@@" + clientIDs.get(threadIndex) +
+                    printWriter.println("@@" + count + "@@" + clientIDs.get(threadIndex) +
                             "@@" + clientPORTs.get(threadIndex) +
                             "@@" + (clientPORTs.get(threadIndex) + 9) +
                             "@@" + isHead + "@@" + isTail);

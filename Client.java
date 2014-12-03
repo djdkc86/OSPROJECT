@@ -1,4 +1,4 @@
-package project.src;
+//package project.src;
 
 import java.io.*;
 import java.net.ServerSocket;
@@ -17,7 +17,10 @@ public class Client extends Thread {
     protected static int SERVER_PORT = 10007;
     protected static int NEIGHBOR_PORT;
     protected static int THIS_CLIENT_PORT;
-    protected static LogicalClock clock;
+    protected static int position;
+    //protected static LogicalClock clock;
+    protected static int[] clock = new int[11];
+    protected static int[] IDS = new int[10];
     protected static ArrayList<Integer> ports = new ArrayList<>();
     protected static String SERVER_HOST_NAME = "127.0.0.1";
     protected static String THIS_HOST_NAME = "127.0.0.1";
@@ -44,8 +47,8 @@ public class Client extends Thread {
 
         //logging();  //only use this when everything is ready to roll, otherwise a zillion log file you will have
         ID = Integer.parseInt((String.valueOf(Calendar.getInstance().getTimeInMillis())).substring(6));
-        clock = new LogicalClock(ID);
-        System.out.println(clock.getTimeStamp());
+        //clock = new LogicalClock(ID);
+        //System.out.println(clock.getTimeStamp());
 
         connectToController(SERVER_PORT);
 
@@ -63,7 +66,7 @@ public class Client extends Thread {
         try {
             listen.start();//this thread opens socket to listen for messages from peers
             if (isHead) {
-                Thread.sleep(500); //listen before talking
+                Thread.sleep(5000); //listen before talking
             }
 
             //log.info("Thread: "+Thread.currentThread().getName()+" is running now");
@@ -104,6 +107,15 @@ public class Client extends Thread {
         while ((inputLine = in2.readLine()) != null) {
             System.out.println("received MSG: " + inputLine);
             //out2.println(inputLine);
+            clock[position] += 1;
+            if(inputLine.contains("<"));
+            String[] array = inputLine.split(" ");
+            setNewClock(array[0]);
+            setNewIDS(array[1]);
+            for(int n : clock){
+                System.out.print(n +"-");
+            }
+            System.out.print("\n");
             if (inputLine.equalsIgnoreCase("Bye"))
                 break;
         }
@@ -142,9 +154,13 @@ public class Client extends Thread {
 
 
         BufferedReader stdIn = new BufferedReader(new InputStreamReader(System.in));
-
+        clock[position] += 1;
+        for(int n : clock){
+            System.out.print(n+"-");
+        }
+        System.out.print("\n");
 //        System.out.print ("input: ");
-        String userInput = "Hello from client ID: " + ID + " [within thread: " + Thread.currentThread().getName() + "]";
+        String userInput = sendClock() + " " + sendIDS();
 //        System.out.println("\n\nInfo on the fucking talkToPeerSocket status!");
 //        System.out.println(talkToPeerSocket.isConnected());
 //        System.out.println(talkToPeerSocket.isBound());
@@ -211,7 +227,7 @@ public class Client extends Thread {
         }
 
         while (!inComingMSG.contains("End") && !inComingMSG.isEmpty()) {
-            clock.tickTock();
+            //clock.tickTock();
             printWriter1.println(outGoingMSG);
             inComingMSG = bufferedReader1.readLine();//read the server says.....
 
@@ -246,11 +262,22 @@ public class Client extends Thread {
     private static void setData(String inComingMSG) {
         //incomingMSG: validID @@ validPORT @@ neighPORT @@ isHEAD @@ isTail
         StringTokenizer stringTokenizer = new StringTokenizer(inComingMSG, "@@");
+        position = Integer.parseInt(stringTokenizer.nextToken());
         ID = Integer.parseInt(stringTokenizer.nextToken());
         THIS_CLIENT_PORT = Integer.parseInt(stringTokenizer.nextToken());
         NEIGHBOR_PORT = Integer.parseInt(stringTokenizer.nextToken());
         isHead = Boolean.parseBoolean(stringTokenizer.nextToken());
         isTail = Boolean.parseBoolean(stringTokenizer.nextToken());
+        for(int i = 0; i < clock.length; i++){
+            if(i==0) clock[i] = ID;
+            else if(i == position) clock[i] = 1;
+            else clock[i] = 0;
+        }
+        
+        for(int i = 0; i < IDS.length ; i++){
+            if(i == position -1) IDS[i] = ID;
+            else IDS[i] = -1;
+        }
 
         System.out.println("      This Client ID: " + ID);
         System.out.println("    This Client Port: " + THIS_CLIENT_PORT);
@@ -269,8 +296,47 @@ public class Client extends Thread {
         formatter = new SimpleFormatter();
         fh.setFormatter(formatter);
     }
+    
+    public static String sendClock(){
+        String myClock = "<";
+        for(int i = 0;i<clock.length;i++){
+            if(i == clock.length -1) myClock = myClock + clock[i] + ">";
+            else myClock = myClock + clock[i] + ",";
+        }
+        
+        return myClock;
+    }
+    
+    public static String sendIDS(){
+        String myIDS = "[";
+        for(int i = 0;i<IDS.length;i++){
+            if(i==IDS.length -1) myIDS = myIDS + IDS[i] + "]";
+            else myIDS = myIDS + IDS[i] + ",";
+        }
+        
+        return myIDS;
+    }
+    
+    public static void setNewClock(String newClock){
+        String eatIt;
+        int [] holder = new int[2];
+        StringTokenizer stringTokenizer = new StringTokenizer(newClock, "<>,");
+        for(int i = 0;i<clock.length;i++){
+            if(i==0) eatIt = stringTokenizer.nextToken();
+            else if (i == position) holder[1] = Integer.parseInt(stringTokenizer.nextToken());
+            else clock[i] = Integer.parseInt(stringTokenizer.nextToken());
+        }
+    }
 
-    static class LogicalClock {
+    public static void setNewIDS(String newIDS){
+        String eatIt;
+        StringTokenizer stringTokenizer = new StringTokenizer(newIDS, "[],");
+        for(int i = 0; i<IDS.length;i++){
+            if(i == position - 1) eatIt = stringTokenizer.nextToken();
+            else IDS[i] = Integer.parseInt(stringTokenizer.nextToken());
+        }
+    }
+    /*static class LogicalClock {
 
         int[] clockData;
 
@@ -282,7 +348,7 @@ public class Client extends Thread {
             clockData[3] = 0;     //most recently received clock value
         }
 
-        /*each process MUST do this before it does an event*/
+        /*each process MUST do this before it does an event
         public void tickTock() {
             clockData[1] += 1;      //event counter++
         }
@@ -304,5 +370,5 @@ public class Client extends Thread {
         public String getTimeStamp() {
             return "[" + clockData[0] + ", " + clockData[1] + ", " + clockData[2] + ", " + clockData[3] + "]";
         }
-    }
+    }*/
 } //ends Client Class...
