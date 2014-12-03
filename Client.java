@@ -1,4 +1,3 @@
-package project.src;
 
 import java.io.*;
 import java.net.ServerSocket;
@@ -215,36 +214,21 @@ public class Client extends Thread {
             e.printStackTrace();
         }
 
-        while (!inComingMSG.contains("End")) {
+        while (!inComingMSG.contains("End") && !inComingMSG.isEmpty()) {
             clock.tickTock();
             printWriter1.println(outGoingMSG);
             inComingMSG = bufferedReader1.readLine();//read the server says.....
+
             try {
-                if (!inComingMSG.isEmpty()) {
-                    System.out.println("        Incoming MSG: " + inComingMSG);
-                    if (inComingMSG.contains("@@")) {
-                        isUnique = true;
-                        setData(inComingMSG);
-                        System.out.println("data received");
-                    }else if (inComingMSG.contains("##")) {
-                        setNeighborPort(inComingMSG);
-                    }
-                }
-                if (inComingMSG.contains("invalid")) {
-                    isUnique = false;
-                    System.out.println("invalid port! ");
-                    THIS_CLIENT_PORT += 1;
-                }
-                System.out.println("        Incoming MSG: " + inComingMSG);
+                System.out.println("Incoming MSG: " + inComingMSG);
+                if (inComingMSG.contains("@@")) { setData(inComingMSG); }
+                else if (inComingMSG.contains("##")) { setNeighborPort(inComingMSG); }
+
             } catch (Exception e) {
                 System.out.println("Socket to Controller Closed.");
                 break;
             }
-
-            System.out.print("say something stupid: ");
-
-            if(isUnique)        {outGoingMSG = bufferedReader2.readLine();}
-            else if(!isUnique)  {outGoingMSG = "@@" + ID + "@@" + THIS_CLIENT_PORT;}
+            System.out.println("say something stupid below... ");
 
         }
 //        printWriter1.close();
