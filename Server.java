@@ -118,7 +118,7 @@ public class Server extends Thread {
                 System.out.println("\nclient IDs: " + clientIDs);
                 System.out.println("client Ports: " + clientPORTs);
                 boolean isHead = (clientIDs.size() < 2 && threadIndex == 0);
-                boolean isTail = (clientIDs.size() == 5);
+                boolean isTail = (clientIDs.size() == 10);
 
                 if (!isHead) {//to non-head processes
                     printWriter.println("@@" + count + "@@" + clientIDs.get(threadIndex) +
@@ -135,8 +135,8 @@ public class Server extends Thread {
                 }
 
                 System.out.println("   -->just sent data to client " + threadIndex);
-                if (count == 5)
-                    broadcast(0, "##" + clientPORTs.get(4).toString());//send port address of last to the first
+                if (count == 10)
+                    broadcast(0, "##" + clientPORTs.get(9).toString());//send port address of last to the first
 //              printWriter1.println("End");
 
             }
@@ -263,9 +263,7 @@ public class Server extends Thread {
     //add method to both client and server
     private static void logging() throws IOException {
         log = Logger.getLogger("LogFile");
-        fh = new FileHandler("Computer" + Client.ID + ".txt");
-        //for the server is as follows
-        //fh = new FileHandler("Controller.txt");
+        fh = new FileHandler("Controller.txt");
         log.addHandler(fh);
         formatter = new SimpleFormatter();
         fh.setFormatter(formatter);

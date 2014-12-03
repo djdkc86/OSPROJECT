@@ -23,6 +23,7 @@ public class Client extends Thread {
     protected static int[] IDS = new int[10];
     protected static ArrayList<Integer> ports = new ArrayList<>();
     protected static String SERVER_HOST_NAME = "127.0.0.1";
+    //you realize this is redundant right???
     protected static String THIS_HOST_NAME = "127.0.0.1";
     protected static Integer ID;
     protected static Socket socketToServer = null;
@@ -290,8 +291,6 @@ public class Client extends Thread {
     private static void logging() throws IOException {
         log = Logger.getLogger("LogFile");
         fh = new FileHandler("Computer" + ID + ".txt");
-        //for the server is as follows
-        //fh = new FileHandler("Controller.txt");
         log.addHandler(fh);
         formatter = new SimpleFormatter();
         fh.setFormatter(formatter);
