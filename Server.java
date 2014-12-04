@@ -4,6 +4,7 @@ package project.src;
 import java.io.*;
 import java.net.*;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Random;
 import java.util.StringTokenizer;
 import java.util.logging.FileHandler;
@@ -123,6 +124,15 @@ public class Server extends Thread {
                 boolean isHead = (clientIDs.size() < 2 && position == 0);
                 boolean isTail = (clientIDs.size() == NETWORK_SIZE);
 
+                if(isTail){
+                    printWriter.println("@@" + position + "@@" + clientIDs.get(position) +
+                            "@@" + clientPORTs.get(position) +
+                            "@@" + (clientPORTs.get(position) + (NETWORK_SIZE-1)) +
+                            "@@" + isHead + "@@" + isTail + "@@" +  NETWORK_SIZE);
+                    broadcast(-1, "End");//+ clientPORTs.get(NETWORK_SIZE-1).toString());//send port address of last to the first
+
+                }
+
                 if (!isHead) {//to non-head processes
                     printWriter.println("@@" + position + "@@" + clientIDs.get(position) +
                             "@@" + clientPORTs.get(position) +
@@ -150,10 +160,12 @@ public class Server extends Thread {
 //                    System.out.println("received MSG: " + client_says);}
 //                    printWriter.println(client_says);
                 if (client_says.trim().equalsIgnoreCase("Bye")) {
+                      broadcast(-1, "End");//send port address of
 //                    printWriter.close();
 //                    printWriter.flush();
 //                    bufferedReader.close();
-                    clientSocket.close();
+                      System.out.println("RightNow: "+Calendar.getInstance().getTimeInMillis());                      System.out.println(Calendar.getInstance().getTimeInMillis());
+//                    clientSocket.close();
                 }
             }
 
@@ -167,8 +179,6 @@ public class Server extends Thread {
             System.exit(1);
         }
     }
-
-
 
     public boolean getData(String s) {
         boolean okayID = false;
@@ -190,7 +200,6 @@ public class Server extends Thread {
             clientIDs.add(getValidID(temp));
             okayID = true;
         }
-
         return okayID && okayPORT;
     }
 
@@ -250,6 +259,11 @@ public class Server extends Thread {
                 try {
                     PrintWriter printWriter3 = new PrintWriter(socket.getOutputStream(), true);
                     printWriter3.println(MSG);
+                        try {
+                            Thread.sleep(20);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
                 } catch (IOException e) {
                     System.err.println("broadcast ["+MSG+"] failed");
                     e.printStackTrace();
