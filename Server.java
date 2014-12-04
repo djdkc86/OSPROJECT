@@ -1,9 +1,10 @@
 
-//package project.src;
+package project.src;
 
 import java.io.*;
 import java.net.*;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Random;
 import java.util.StringTokenizer;
 import java.util.logging.FileHandler;
@@ -12,6 +13,7 @@ import java.util.logging.SimpleFormatter;
 
 public class Server extends Thread {
 
+    protected static int NETWORK_SIZE = 3;  //change this to adjust size of ring
     protected Socket clientSocket;//enables listening to client systems
     protected static ArrayList<Integer> clientIDs = new ArrayList<>();
     protected static ArrayList<Integer> clientPORTs = new ArrayList<>();
@@ -23,14 +25,16 @@ public class Server extends Thread {
     private static int count = 0; //clients systems initialized to zero
     Random random;// = new Random();
 
+
     public static void main(String[] args) throws IOException {
 
+
         /***********************************************************
-         **
-         **   Initialize ServerSocket and tell it to wait for
-         **   connections from client systems
-         **
-         ************************************************************/
+        **
+        **   Initialize ServerSocket and tell it to wait for
+        **   connections from client systems
+        **
+        ************************************************************/
         if (args.length > 0) {
             Integer.parseInt(args[0]);
         }
@@ -64,11 +68,11 @@ public class Server extends Thread {
         }
 
         /*****************************************************
-         **
-         **   Initialize ServerSocket and tell it to wait for
-         **   connections from client systems
-         **
-         ******************************************************/
+        **
+        **   Initialize ServerSocket and tell it to wait for
+        **   connections from client systems
+        **
+        ******************************************************/
         PrintWriter printWriter = new PrintWriter(clientSocket.getOutputStream(), true);
         BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
         BufferedReader bufferedReader2 = new BufferedReader(new InputStreamReader(System.in));
@@ -109,7 +113,7 @@ public class Server extends Thread {
 
             String client_says = bufferedReader.readLine();
             printWriter.println("processing request...");
-            int threadIndex = getThreadIndex();
+            int position = getThreadIndex();
 
             if (!getData(client_says)) {
                 printWriter.println("invalid ");
@@ -117,26 +121,35 @@ public class Server extends Thread {
                 //initial data transfer: validID @@ validPORT @@ neighPORT @@ isHEAD @@ isTail
                 System.out.println("\nclient IDs: " + clientIDs);
                 System.out.println("client Ports: " + clientPORTs);
-                boolean isHead = (clientIDs.size() < 2 && threadIndex == 0);
-                boolean isTail = (clientIDs.size() == 10);
+                boolean isHead = (clientIDs.size() < 2 && position == 0);
+                boolean isTail = (clientIDs.size() == NETWORK_SIZE);
 
-                if (!isHead) {//to non-head processes
-                    printWriter.println("@@" + count + "@@" + clientIDs.get(threadIndex) +
-                            "@@" + clientPORTs.get(threadIndex) +
-                            "@@" + clientPORTs.get(threadIndex - 1) +
-                            "@@" + isHead + "@@" + isTail);
-
-                } else if (isHead) {//to head
-                    printWriter.println("@@" + count + "@@" + clientIDs.get(threadIndex) +
-                            "@@" + clientPORTs.get(threadIndex) +
-                            "@@" + (clientPORTs.get(threadIndex) + 9) +
-                            "@@" + isHead + "@@" + isTail);
+                if(isTail){
+                    printWriter.println("@@" + position + "@@" + clientIDs.get(position) +
+                            "@@" + clientPORTs.get(position) +
+                            "@@" + (clientPORTs.get(position) + (NETWORK_SIZE-1)) +
+                            "@@" + isHead + "@@" + isTail + "@@" +  NETWORK_SIZE);
+                    broadcast(-1, "End");//+ clientPORTs.get(NETWORK_SIZE-1).toString());//send port address of last to the first
 
                 }
 
-                System.out.println("   -->just sent data to client " + threadIndex);
-                if (count == 10)
-                    broadcast(0, "##" + clientPORTs.get(9).toString());//send port address of last to the first
+                if (!isHead) {//to non-head processes
+                    printWriter.println("@@" + position + "@@" + clientIDs.get(position) +
+                            "@@" + clientPORTs.get(position) +
+                            "@@" + clientPORTs.get(position - 1) +
+                            "@@" + isHead + "@@" + isTail + "@@" + NETWORK_SIZE);
+
+                } else if (isHead) {//to head
+                    printWriter.println("@@" + position + "@@" + clientIDs.get(position) +
+                            "@@" + clientPORTs.get(position) +
+                            "@@" + (clientPORTs.get(position) + (NETWORK_SIZE-1)) +
+                            "@@" + isHead + "@@" + isTail + "@@" +  NETWORK_SIZE);
+
+                }
+
+                System.out.println("   -->just sent data to client " + position);
+                if (count == NETWORK_SIZE)
+                    broadcast(0, "##" + clientPORTs.get(NETWORK_SIZE-1).toString());//send port address of last to the first
 //              printWriter1.println("End");
 
             }
@@ -147,10 +160,12 @@ public class Server extends Thread {
 //                    System.out.println("received MSG: " + client_says);}
 //                    printWriter.println(client_says);
                 if (client_says.trim().equalsIgnoreCase("Bye")) {
+                      broadcast(-1, "End");//send port address of
 //                    printWriter.close();
 //                    printWriter.flush();
 //                    bufferedReader.close();
-                    clientSocket.close();
+                      System.out.println("RightNow: "+Calendar.getInstance().getTimeInMillis());                      System.out.println(Calendar.getInstance().getTimeInMillis());
+//                    clientSocket.close();
                 }
             }
 
@@ -164,7 +179,6 @@ public class Server extends Thread {
             System.exit(1);
         }
     }
-
 
     public boolean getData(String s) {
         boolean okayID = false;
@@ -186,7 +200,6 @@ public class Server extends Thread {
             clientIDs.add(getValidID(temp));
             okayID = true;
         }
-
         return okayID && okayPORT;
     }
 
@@ -221,7 +234,7 @@ public class Server extends Thread {
     }
 
     private int getValidPort() {
-        return 10010 + getThreadIndex();
+        return 20010 + getThreadIndex();
     }
 
     private int getThreadIndex() {
@@ -239,26 +252,34 @@ public class Server extends Thread {
     }
 
     public void broadcast(int position, String MSG) {
-        System.out.println("trying to send MSG: " + MSG);
+        System.out.println("  ...within broadcast trying to send MSG: "+ MSG);
+
         if (position == -1) {
             for (Socket socket : clientTHREADS) {
                 try {
                     PrintWriter printWriter3 = new PrintWriter(socket.getOutputStream(), true);
                     printWriter3.println(MSG);
+                        try {
+                            Thread.sleep(20);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
                 } catch (IOException e) {
+                    System.err.println("broadcast ["+MSG+"] failed");
                     e.printStackTrace();
                 }
             }
+
         } else {
             try {
                 PrintWriter printWriter3 = new PrintWriter(clientTHREADS.get(position).getOutputStream(), true);
                 printWriter3.println(MSG);
             } catch (IOException e) {
+                System.err.println("broadcast ["+MSG+"] failed");
                 e.printStackTrace();
             }
         }
     }
-
 
     //add method to both client and server
     private static void logging() throws IOException {
