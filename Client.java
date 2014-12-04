@@ -1,4 +1,4 @@
-//package project.src;
+package project.src;
 
 import java.io.*;
 import java.net.ServerSocket;
@@ -6,6 +6,7 @@ import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Random;
 import java.util.StringTokenizer;
 import java.util.logging.FileHandler;
 import java.util.logging.Logger;
@@ -14,13 +15,14 @@ import java.util.logging.SimpleFormatter;
 
 public class Client extends Thread {
 
+    //static VectorClock vectorClock;
+    protected static int NETWORK_SIZE;
     protected static int SERVER_PORT = 10007;
     protected static int NEIGHBOR_PORT;
     protected static int THIS_CLIENT_PORT;
     protected static int position;
-    //protected static LogicalClock clock;
-    protected static int[] clock = new int[11];
-    protected static int[] IDS = new int[10];
+    protected static int[] clock;
+    protected static int[] IDS;
     protected static ArrayList<Integer> ports = new ArrayList<>();
     protected static String SERVER_HOST_NAME = "127.0.0.1";
     //you realize this is redundant right???
@@ -41,17 +43,20 @@ public class Client extends Thread {
     private static Logger log;
     private static FileHandler fh;
     static SimpleFormatter formatter;
-
     static Thread listen;
+    static Random random;
+    static boolean readyToTalk;
 
     public static void main(String[] args) throws Exception {
 
         //logging();  //only use this when everything is ready to roll, otherwise a zillion log file you will have
-        ID = Integer.parseInt((String.valueOf(Calendar.getInstance().getTimeInMillis())).substring(6));
-        //clock = new LogicalClock(ID);
-        //System.out.println(clock.getTimeStamp());
+        //ID = Integer.parseInt((String.valueOf(Calendar.getInstance().getTimeInMillis())).substring(6));
+        random = new Random();
+        ID = Math.abs(random.nextInt(1000));
+
 
         connectToController(SERVER_PORT);
+        System.out.println("RightNow: "+Calendar.getInstance().getTimeInMillis());
 
         listen = new Thread() {
             @Override
@@ -66,16 +71,79 @@ public class Client extends Thread {
 
         try {
             listen.start();//this thread opens socket to listen for messages from peers
-            if (isHead) {
-                Thread.sleep(5000); //listen before talking
-            }
+            if (isHead) { Thread.sleep(0); } //head slow down
+
 
             //log.info("Thread: "+Thread.currentThread().getName()+" is running now");
             System.out.println("Thread: " + Thread.currentThread().getName() + " is running now");
+
+
+
             connectToPeer(NEIGHBOR_PORT);//not the head
+
+
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+    }
+
+    private static void connectToController(int server_port) throws IOException {
+        try {
+            socketToServer = new Socket(SERVER_HOST_NAME, server_port);
+            printWriter1 = new PrintWriter(socketToServer.getOutputStream(), true);
+            bufferedReader1 = new BufferedReader(new InputStreamReader(socketToServer.getInputStream()));
+            System.out.println("Connected to " + SERVER_HOST_NAME + " :: " + server_port);
+        } catch (UnknownHostException e) {
+            System.err.println("Don't know about host: " + SERVER_HOST_NAME);
+            System.exit(1);
+        } catch (IOException e) {
+            System.err.println("Couldn't get I/O for " + "the connection to: " + SERVER_HOST_NAME);
+            System.exit(1);
+        }
+
+        bufferedReader2 = new BufferedReader(new InputStreamReader(System.in));
+        printWriter1.println("@@" + ID + "@@" + THIS_CLIENT_PORT);
+
+        try {
+            Thread.sleep(0);
+            inComingMSG = bufferedReader1.readLine();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        while (!inComingMSG.contains("End") && !inComingMSG.isEmpty()) {
+            printWriter1.println(outGoingMSG);
+            inComingMSG = bufferedReader1.readLine();//read the server says.....
+            try {
+                System.out.println("Incoming MSG: " + inComingMSG);
+                if (inComingMSG.contains("@@")) {
+                    setData(inComingMSG);
+                } else if (inComingMSG.contains("##")) {
+                    setNeighborPort(inComingMSG);
+                    try {
+                        Thread.sleep(0);
+                        printWriter1.println("Bye");
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+            } catch (Exception e) {
+                System.out.println("Socket to Controller Closed.");
+
+                break;
+            }
+        }//end-while
+
+        //printWriter1.close();
+        //printWriter1.flush();
+        //bufferedReader1.close();
+        //        bufferedReader2.close();
+        try {
+            Thread.sleep(10*position);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        socketToServer.close();
     }
 
     private static void beAServer(int localServerPort) throws IOException {
@@ -83,7 +151,7 @@ public class Client extends Thread {
         try {
             serverSocket = new ServerSocket(localServerPort);
         } catch (IOException e) {
-            System.err.println("Could not listen on port: 10007.");
+            System.err.println("Problem Setting Up ServerSocket on Port:"+localServerPort+"\n -->"+e.getMessage());
             System.exit(1);
         }
 
@@ -137,7 +205,7 @@ public class Client extends Thread {
 
         Socket talkToPeerSocket = null;
         PrintWriter printWriter2 = null;
-        BufferedReader bufferedReader2 = null;
+        //BufferedReader bufferedReader2 = null;
 
         try {
             talkToPeerSocket = new Socket(serverHostname, server_port);
@@ -153,105 +221,23 @@ public class Client extends Thread {
             System.exit(1);
         }
 
-
         BufferedReader stdIn = new BufferedReader(new InputStreamReader(System.in));
-        clock[position] += 1;
-        for(int n : clock){
-            System.out.print(n+"-");
-        }
-        System.out.print("\n");
-//        System.out.print ("input: ");
-        String userInput = sendClock() + " " + sendIDS();
-//        System.out.println("\n\nInfo on the fucking talkToPeerSocket status!");
-//        System.out.println(talkToPeerSocket.isConnected());
-//        System.out.println(talkToPeerSocket.isBound());
-//        System.out.println(talkToPeerSocket.isClosed());
-//        System.out.println("\n\n");
-        printWriter2.println(userInput);
-        try {
-            Thread.sleep(40);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+
+        while(!areWeReady())
+        {
+            clock[position] += 1;
+            try {
+                Thread.sleep(Math.abs(random.nextInt(100)));
+                String userInput = getClock() + " " + getIDs();
+                printWriter2.println(userInput);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
         printWriter2.println("Thats all i got");
 
-//        int count = 0;
-//        while (userInput.length()==0 && count < 4) {
-//            count++;
-//            out.println(userInput);
-//            try{
-//                System.out.println("echo: " + in.readLine());
-//                //if(in.readLine().equalsIgnoreCase("End")) {System.out.println("Socket will be closed!");break;}
-//            }
-//            catch (Exception e)
-//            {
-//                System.out.println("Socket Closed!");
-//                break;
-//            }
-//            System.out.print ("input: ");
-//            userInput = null;
-//            userInput = stdIn.readLine();
-//            userInput = "test 2";
-//        }
-
-//        printWriter2.close();
-//        bufferedReader2.close();
         stdIn.close();
-//        talkToPeerSocket.close();
-    }
-
-    /**
-     * create and initialize a socket that can exchange with server
-     */
-    private static void connectToController(int server_port) throws IOException {
-        try {
-            socketToServer = new Socket(SERVER_HOST_NAME, server_port);
-            printWriter1 = new PrintWriter(socketToServer.getOutputStream(), true);
-            bufferedReader1 = new BufferedReader(new InputStreamReader(socketToServer.getInputStream()));
-            System.out.println("Connected to " + SERVER_HOST_NAME + " :: " + server_port);
-        } catch (UnknownHostException e) {
-            System.err.println("Don't know about host: " + SERVER_HOST_NAME);
-            System.exit(1);
-        } catch (IOException e) {
-            System.err.println("Couldn't get I/O for " + "the connection to: " + SERVER_HOST_NAME);
-            System.exit(1);
-        }
-
-        bufferedReader2 = new BufferedReader(new InputStreamReader(System.in));
-        printWriter1.println("@@" + ID + "@@" + THIS_CLIENT_PORT);
-
-        try {
-            Thread.sleep(50);
-            inComingMSG = bufferedReader1.readLine();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-
-        while (!inComingMSG.contains("End") && !inComingMSG.isEmpty()) {
-            //clock.tickTock();
-            printWriter1.println(outGoingMSG);
-            inComingMSG = bufferedReader1.readLine();//read the server says.....
-
-            try {
-                System.out.println("Incoming MSG: " + inComingMSG);
-                if (inComingMSG.contains("@@")) {
-                    setData(inComingMSG);
-                } else if (inComingMSG.contains("##")) {
-                    setNeighborPort(inComingMSG);
-                    printWriter1.println("Bye");
-                    break;
-                }
-            } catch (Exception e) {
-                System.out.println("Socket to Controller Closed.");
-                break;
-            }
-        }//end-while
-
-//        printWriter1.close();
-//        printWriter1.flush();
-//        bufferedReader1.close();
-//        bufferedReader2.close();
-        socketToServer.close(); //close socket
+//      talkToPeerSocket.close();
     }
 
     private static void setNeighborPort(String inComingMSG) {
@@ -263,28 +249,38 @@ public class Client extends Thread {
     private static void setData(String inComingMSG) {
         //incomingMSG: validID @@ validPORT @@ neighPORT @@ isHEAD @@ isTail
         StringTokenizer stringTokenizer = new StringTokenizer(inComingMSG, "@@");
-        position = Integer.parseInt(stringTokenizer.nextToken());
+        position = Integer.parseInt(stringTokenizer.nextToken())+1;
         ID = Integer.parseInt(stringTokenizer.nextToken());
         THIS_CLIENT_PORT = Integer.parseInt(stringTokenizer.nextToken());
         NEIGHBOR_PORT = Integer.parseInt(stringTokenizer.nextToken());
         isHead = Boolean.parseBoolean(stringTokenizer.nextToken());
         isTail = Boolean.parseBoolean(stringTokenizer.nextToken());
+        NETWORK_SIZE = Integer.parseInt(stringTokenizer.nextToken());
+
+        clock = new int[NETWORK_SIZE+1];
+        IDS = new int[NETWORK_SIZE];
+
         for(int i = 0; i < clock.length; i++){
             if(i==0) clock[i] = ID;
-            else if(i == position) clock[i] = 1;
+            else if(i == position) clock[i] += 1;
             else clock[i] = 0;
         }
-        
+
         for(int i = 0; i < IDS.length ; i++){
-            if(i == position -1) IDS[i] = ID;
+            if(i == position-1) IDS[i] = ID;
             else IDS[i] = -1;
         }
+
+        //IDS[position-1]=ID;
+
+        System.out.println(getIDs());
+
+        System.out.println("Client "+position+"'s clock "+getClock());
 
         System.out.println("      This Client ID: " + ID);
         System.out.println("    This Client Port: " + THIS_CLIENT_PORT);
         System.out.println("       Neighbor Port: " + NEIGHBOR_PORT);
         System.out.println("isHead/isTail Status: " + isHead + "/" + isTail);
-
     }
 
     //add method to both client and server
@@ -295,79 +291,62 @@ public class Client extends Thread {
         formatter = new SimpleFormatter();
         fh.setFormatter(formatter);
     }
-    
-    public static String sendClock(){
+
+    public static String getClock(){
         String myClock = "<";
         for(int i = 0;i<clock.length;i++){
             if(i == clock.length -1) myClock = myClock + clock[i] + ">";
             else myClock = myClock + clock[i] + ",";
         }
-        
         return myClock;
     }
-    
-    public static String sendIDS(){
+
+    public static String getIDs(){
         String myIDS = "[";
         for(int i = 0;i<IDS.length;i++){
             if(i==IDS.length -1) myIDS = myIDS + IDS[i] + "]";
             else myIDS = myIDS + IDS[i] + ",";
         }
-        
         return myIDS;
     }
-    
+
     public static void setNewClock(String newClock){
         String eatIt;
         int [] holder = new int[2];
-        StringTokenizer stringTokenizer = new StringTokenizer(newClock, "<>,");
-        for(int i = 0;i<clock.length;i++){
-            if(i==0) eatIt = stringTokenizer.nextToken();
-            else if (i == position) holder[1] = Integer.parseInt(stringTokenizer.nextToken());
-            else clock[i] = Integer.parseInt(stringTokenizer.nextToken());
+        if(newClock.contains("<") && newClock.contains(">")){
+            StringTokenizer stringTokenizer = new StringTokenizer(newClock, "<>,");
+            for(int i = 0;i<clock.length;i++){
+                if(i==0) eatIt = stringTokenizer.nextToken();
+                else if (i == position) holder[1] = Integer.parseInt(stringTokenizer.nextToken());
+                else clock[i] = Integer.parseInt(stringTokenizer.nextToken());
+            }
         }
     }
 
     public static void setNewIDS(String newIDS){
         String eatIt;
-        StringTokenizer stringTokenizer = new StringTokenizer(newIDS, "[],");
-        for(int i = 0; i<IDS.length;i++){
-            if(i == position - 1) eatIt = stringTokenizer.nextToken();
-            else IDS[i] = Integer.parseInt(stringTokenizer.nextToken());
+        if(newIDS.contains("[") && newIDS.contains("]")) {
+            StringTokenizer stringTokenizer = new StringTokenizer(newIDS, "[],");
+            for (int i = 0; i < IDS.length; i++) {
+                if (i == position-1) {
+                    eatIt = stringTokenizer.nextToken();
+                    IDS[i] = ID;
+                }
+                else IDS[i] = Integer.parseInt(stringTokenizer.nextToken());
+            }
         }
     }
-    /*static class LogicalClock {
 
-        int[] clockData;
-
-        public LogicalClock(int ID) {
-            clockData = new int[4];
-            clockData[0] = ID;    //who's clock it is
-            clockData[1] = 0;     //current clock value
-            clockData[2] = 0;     //most recently received from ID
-            clockData[3] = 0;     //most recently received clock value
-        }
-
-        /*each process MUST do this before it does an event
-        public void tickTock() {
-            clockData[1] += 1;      //event counter++
-        }
-
-        public void synchronize(LogicalClock incoming) {
-            // update last received data
-            this.clockData[2] = incoming.clockData[0];
-            this.clockData[3] = incoming.clockData[1];
-
-            // higher than current?
-            if (incoming.clockData[1] > this.clockData[1]) {
-                this.clockData[1] = incoming.clockData[1];
+    public static boolean areWeReady()
+    {
+        for(int i = 0; i<IDS.length; i++)
+        {
+            if(IDS[i]==-1)
+            {
+                return false;
             }
-
-            // receiving/synchronizing IS an event so increment
-            this.clockData[1] += 1;
         }
+        return true;
+    }
 
-        public String getTimeStamp() {
-            return "[" + clockData[0] + ", " + clockData[1] + ", " + clockData[2] + ", " + clockData[3] + "]";
-        }
-    }*/
 } //ends Client Class...
